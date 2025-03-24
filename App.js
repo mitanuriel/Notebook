@@ -152,6 +152,7 @@ const MapScreen = () => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [markers, setMarkers] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -173,12 +174,35 @@ const MapScreen = () => {
     })();
   }, []);
 
+  const handleLongPress = (event) => {
+    const coordinate = event.nativeEvent.coordinate;
+    const newMarker = {
+      id: Date.now().toString(), // unique ID
+      coordinate,
+      title: "Cool Place",
+    };
+    setMarkers([...markers, newMarker]);
+  };
+
   return (
-    <MapView style={styles.map} region={region}>
+    <MapView 
+    style={styles.map} 
+    region={region}
+    onLongPress={handleLongPress}
+    >
+
       <Marker
         coordinate={{ latitude: region.latitude, longitude: region.longitude }}
         title="You are here"
+        
       />
+       {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          coordinate={marker.coordinate}
+          title={marker.title}
+        />
+      ))}
     </MapView>
   );
 };
