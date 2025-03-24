@@ -5,11 +5,13 @@ import { StyleSheet,FlatList, Button, View, TextInput, Text } from 'react-native
 export default function App() {
 
   const [text, setText] = useState('')//gotta survive the rerendering, hook as a reigniting mechanism
-
-  const notes = [{key:1, name: "Anna"}, {key:2, name: "Harriet"}]
+  const [notes, setNotes] = useState([])
 
   function buttonHandler(){
     alert("you types:" + text)
+    setNotes(
+      [...notes, {key: notes.length, name: text}] // spread operator usage
+    )
   }
   return (
     <View style={styles.container}>
