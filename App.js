@@ -15,17 +15,49 @@ export default function App() {
       [...notes, {key: notes.length, name: text}] // spread operator usage
     )
   }
+
+  const Stack = createNativeStackNavigator() // Stack navigator that lets to navigate from page to page
   return (
-    <View style={styles.container}>
-      <TextInput style={styles.textInput} onChangeText={(txt) => setText(txt)}/>
-      <Button title='Press me' onPress={buttonHandler}></Button>
-      <FlatList
-        data={notes}
-        renderItem={(note) => <Text>{note.item.name}</Text>}
-      />
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName='ListPage'>
+        <Stack.Screen
+        name='ListPage'
+        component={ListPage}
+        />
+         <Stack.Screen
+        name='DetailPage'
+        component={DetailPage}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+
   );
+}
+
+const ListPage = ({navigation, route}) => {
+
+  function handleButton(){
+    navigation.navigate('DetailPage')
+  }
+  
+  return (
+    <View>
+      <Text>
+        Hej
+      </Text>
+      <Button onPress={handleButton} title='Press Me'></Button>
+    </View>
+  )
+}
+
+const DetailPage = ({navigation, route}) => {
+  return (
+    <View>
+      <Text>
+        Details
+      </Text>
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
