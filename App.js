@@ -32,7 +32,7 @@ const NotebookPage = ({ navigation, route }) => {
     }, [])
   );
 
-  // 1. Load from AsyncStorage
+  
   async function loadData() {
     try {
       const jsonValue = await AsyncStorage.getItem('myList');
@@ -54,7 +54,7 @@ const NotebookPage = ({ navigation, route }) => {
     }
   }
 
-  // 3. Add a note as an object
+  
   function addNote() {
     if (text.trim()) {
       const newNote = {
@@ -68,12 +68,12 @@ const NotebookPage = ({ navigation, route }) => {
     }
   }
 
-  // (Optional) If you want to show only the first 25 chars
+ 
   function truncate(noteText) {
     return noteText.length > 25 ? noteText.substring(0, 25) + '...' : noteText;
   }
 
-  // Go to detail page with the full note object
+  
   function goToDetailPage(noteItem) {
     navigation.navigate('DetailPage', { note: noteItem });
   }
@@ -94,10 +94,10 @@ const NotebookPage = ({ navigation, route }) => {
       <FlatList
         style={styles.notesList}
         data={notes}
-        // Use item.key as the unique key
+        
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => (
-          // 4. Render only item.name in Text, not the entire item object
+          
           <Pressable onPress={() => goToDetailPage(item)}>
             <View style={styles.noteItem}>
               <Text style={styles.noteText}>
@@ -112,22 +112,22 @@ const NotebookPage = ({ navigation, route }) => {
   );
 };
 
-// Example DetailPage that shows full note text, lets you edit, and saves back
+
 const DetailPage = ({ navigation, route }) => {
   const { note } = route.params;
   const [detailText, setDetailText] = useState(note.name);
 
   async function saveNote() {
     try {
-      // Load current notes
+      
       const jsonValue = await AsyncStorage.getItem('myList');
       const notesArray = jsonValue ? JSON.parse(jsonValue) : [];
-      // Find and update the note
+      
       const index = notesArray.findIndex((item) => item.key === note.key);
       if (index !== -1) {
         notesArray[index].name = detailText;
       }
-      // Save back
+      
       await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
       navigation.goBack();
     } catch (e) {
@@ -149,7 +149,7 @@ const DetailPage = ({ navigation, route }) => {
   );
 };
 
-// Keep your existing styles, or tweak as needed
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
