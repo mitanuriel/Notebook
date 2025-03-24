@@ -10,23 +10,20 @@ export default function App() {
   const Stack = createNativeStackNavigator() // Stack navigator that lets to navigate from page to page
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName='ListPage'>
+      <Stack.Navigator initialRouteName='Notebook'>
         <Stack.Screen
-        name='ListPage'
-        component={ListPage}
+        name='Notebook'
+        component={NotebookPage}
+        options={{ headerShown: false }}
         />
-         <Stack.Screen
-        name='DetailPage'
-        component={DetailPage}
-        />
+    
       </Stack.Navigator>
     </NavigationContainer>
 
   );
 }
 
-const ListPage = ({navigation, route}) => {
-  const myList = [{key: 1, name: "Anna"}, {key:2, name: "Harriet"}]
+const NotebookPage = ({navigation, route}) => {
 
   const [text, setText] = useState('')//gotta survive the rerendering, hook as a reigniting mechanism
   const [notes, setNotes] = useState([])
@@ -37,41 +34,34 @@ const ListPage = ({navigation, route}) => {
       setText(''); 
     }
   }
-
-
-  function handleButton(item){
-    navigation.navigate('DetailPage', {message: note})
-  }
   return (
     <View style={styles.container}>
-      <Text style={{ fontSize: 20, marginBottom: 10 }}>Enter a note:</Text>
+      <Text style={styles.heading}>Notebook</Text>
+
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder="Enter a note"
+        placeholder="Type your note here..."
         style={styles.textInput}
       />
+
       <Button title="Add Note" onPress={addNote} />
-      {/* Display each note and add a Details button */}
-      {notes.map((note, index) => (
-        <View key={index} style={{ marginVertical: 5 }}>
-          <Text>{note}</Text>
-          <Button title="Details" onPress={() => handleButton(note)} />
-        </View>
-      ))}
+
+  
+      <FlatList
+        style={styles.notesList}
+        data={notes}
+        keyExtractor={(_, index) => index.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.noteItem}>
+            <Text style={styles.noteText}>{item}</Text>
+          </View>
+        )}
+      />
+      <StatusBar style="auto" />
     </View>
   );
 };
-
-const DetailPage = ({navigation, route}) => {
-  const message = route.params?.message
-  return (
-    <View style={styles.container}>
-      {/* Updated to display the note directly */}
-      <Text style={{ fontSize: 20 }}>Details ... {message}</Text>
-    </View>
-  )
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -82,13 +72,32 @@ const styles = StyleSheet.create({
     marginTop: 50,
     padding: 20,
   },
-  textInput:{
+  heading: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  textInput: {
     backgroundColor: 'lightblue',
-    minWidth: 200,
     padding: 10,
     marginBottom: 10,
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#ccc',
-  }
+  },
+  notesList: {
+    marginTop: 10,
+  },
+  noteItem: {
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    marginBottom: 8,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  noteText: {
+    fontSize: 16,
+  },
 });
