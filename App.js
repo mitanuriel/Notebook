@@ -11,7 +11,7 @@ export default function App() {
   }
   return (
     <View style={styles.container}>
-      <TextInput onChangeText={(txt) => setText(txt)}/>
+      <TextInput style={styles.textInput} onChangeText={(txt) => setText(txt)}/>
       <Button title='Press me' onPress={buttonHandler}></Button>
       <StatusBar style="auto" />
     </View>
@@ -25,4 +25,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  textInput:{
+    backgroundColor: 'lightblue',
+    minWidth:200
+  }
 });
