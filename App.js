@@ -1,8 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, FlatList, Button, View, TextInput, Text, Pressable } from 'react-native';
 
@@ -17,6 +19,7 @@ export default function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="DetailPage" component={DetailPage} />
+        <Stack.Screen name="MapScreen" component={MapScreen} options={{ title: 'Map' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -32,7 +35,6 @@ const NotebookPage = ({ navigation, route }) => {
     }, [])
   );
 
-  
   async function loadData() {
     try {
       const jsonValue = await AsyncStorage.getItem('myList');
@@ -44,7 +46,6 @@ const NotebookPage = ({ navigation, route }) => {
     }
   }
 
-  // 2. Save to AsyncStorage
   async function storeData(updatedList) {
     try {
       const jsonValue = JSON.stringify(updatedList);
@@ -54,7 +55,6 @@ const NotebookPage = ({ navigation, route }) => {
     }
   }
 
-  
   function addNote() {
     if (text.trim()) {
       const newNote = {
@@ -68,12 +68,10 @@ const NotebookPage = ({ navigation, route }) => {
     }
   }
 
- 
   function truncate(noteText) {
     return noteText.length > 25 ? noteText.substring(0, 25) + '...' : noteText;
   }
 
-  
   function goToDetailPage(noteItem) {
     navigation.navigate('DetailPage', { note: noteItem });
   }
@@ -94,10 +92,8 @@ const NotebookPage = ({ navigation, route }) => {
       <FlatList
         style={styles.notesList}
         data={notes}
-        
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => (
-          
           <Pressable onPress={() => goToDetailPage(item)}>
             <View style={styles.noteItem}>
               <Text style={styles.noteText}>
@@ -107,11 +103,13 @@ const NotebookPage = ({ navigation, route }) => {
           </Pressable>
         )}
       />
+     
+      <Button title="Show Map" onPress={() => navigation.navigate('MapScreen')} />
+
       <StatusBar style="auto" />
     </View>
   );
 };
-
 
 const DetailPage = ({ navigation, route }) => {
   const { note } = route.params;
@@ -119,15 +117,12 @@ const DetailPage = ({ navigation, route }) => {
 
   async function saveNote() {
     try {
-      
       const jsonValue = await AsyncStorage.getItem('myList');
       const notesArray = jsonValue ? JSON.parse(jsonValue) : [];
-      
       const index = notesArray.findIndex((item) => item.key === note.key);
       if (index !== -1) {
         notesArray[index].name = detailText;
       }
-      
       await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
       navigation.goBack();
     } catch (e) {
@@ -149,6 +144,68 @@ const DetailPage = ({ navigation, route }) => {
   );
 };
 
+const MapScreen = () => {
+  
+  const [region, setRegion] = useState({
+    latitude: 37.78825,         
+    longitude: -122.4324,       
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [markers, setMarkers] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      // Request permission for location access
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      console.log('Location fetched:', location.coords); 
+      
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+    })();
+  }, []);
+
+  const handleLongPress = (event) => {
+    const coordinate = event.nativeEvent.coordinate;
+    const newMarker = {
+      id: Date.now().toString(), // unique ID
+      coordinate,
+      title: "Cool Place",
+    };
+    setMarkers([...markers, newMarker]);
+  };
+
+  return (
+    <MapView 
+    style={styles.map} 
+    region={region}
+    onLongPress={handleLongPress}
+    >
+
+      <Marker
+        coordinate={{ latitude: region.latitude, longitude: region.longitude }}
+        title="You are here"
+        
+      />
+       {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          coordinate={marker.coordinate}
+          title={marker.title}
+        />
+      ))}
+    </MapView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -188,5 +245,10 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 16,
+  },
+  
+  map: {
+    flex: 1,
+    width: '100%',
   },
 });
