@@ -138,25 +138,55 @@ const DetailPage = ({ navigation, route }) => {
     try {
       const jsonValue = await AsyncStorage.getItem('myList');
       let notesArray = jsonValue ? JSON.parse(jsonValue) : [];
-
-     
       notesArray = notesArray.filter((item) => item.key !== note.key);
-
-     
       await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
-
-      
       navigation.goBack();
     } catch (error) {
       console.log("Error deleting note:", error);
     }
   }
 
+  //  Share current GPS location with the note
+  async function shareLocation() {
+    try {
+      // Request permission for location access
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return;
+      }
+      // get the current location
+      let location = await Location.getCurrentPositionAsync({});
+      const coordinate = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+
+      // update the note in AsyncStorage with a new "location" property
+      const jsonValue = await AsyncStorage.getItem('myList');
+      const notesArray = jsonValue ? JSON.parse(jsonValue) : [];
+      const index = notesArray.findIndex((item) => item.key === note.key);
+      if (index !== -1) {
+        notesArray[index].location = coordinate;
+      }
+      await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
+      
+      //  add the marker to Firestore so it appears on the map
+      const docRef = await addDoc(collection(db, "markers"), {
+        coordinate,
+        title: note.name,
+        noteKey: note.key,
+        createdAt: new Date(),
+      });
+      console.log("Marker saved with ID: ", docRef.id);
+    } catch (error) {
+      console.log("Error sharing location: ", error);
+    }
+  }
+
   return (
     <View style={styles.detailContainer}>
       <Text style={styles.detailHeading}>Edit Note</Text>
-
-     
       <TextInput
         style={styles.detailTextInput}
         value={detailText}
@@ -165,12 +195,14 @@ const DetailPage = ({ navigation, route }) => {
         placeholder="Edit your note..."
         placeholderTextColor="#ccc"
       />
-
       <View style={{ flexDirection: 'row', marginTop: 10 }}>
         <View style={{ marginRight: 10 }}>
           <Button title="SAVE" onPress={saveNote} />
         </View>
-        <Button title="DELETE" onPress={deleteNote} color="red" />
+        <View style={{ marginRight: 10 }}>
+          <Button title="DELETE" onPress={deleteNote} color="red" />
+        </View>
+        <Button title="Share Location" onPress={shareLocation} color="#2196F3" />
       </View>
     </View>
   );
@@ -187,7 +219,6 @@ const MapScreen = () => {
 
   useEffect(() => {
     (async () => {
-     
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.log('Permission to access location was denied');
@@ -201,7 +232,6 @@ const MapScreen = () => {
         });
       }
 
-      
       const querySnapshot = await getDocs(collection(db, "markers"));
       let loadedMarkers = [];
       querySnapshot.forEach((doc) => {
@@ -225,7 +255,6 @@ const MapScreen = () => {
       title: "Cool Place",
     };
 
-  
     try {
       const docRef = await addDoc(collection(db, "markers"), {
         coordinate,
@@ -233,8 +262,6 @@ const MapScreen = () => {
         createdAt: new Date(),
       });
       console.log("Marker saved with ID: ", docRef.id);
-
-     
       setMarkers([...markers, { ...newMarker, id: docRef.id }]);
     } catch (e) {
       console.error("Error adding marker: ", e);
@@ -247,12 +274,10 @@ const MapScreen = () => {
       region={region}
       onLongPress={handleLongPress}
     >
-      
       <Marker
         coordinate={{ latitude: region.latitude, longitude: region.longitude }}
         title="You are here"
       />
-     
       {markers.map((marker) => (
         <Marker
           key={marker.id}
@@ -264,7 +289,6 @@ const MapScreen = () => {
   );
 };
 
-// UPDATED STYLES
 const styles = StyleSheet.create({
   stylishContainer: {
     flex: 1,
@@ -313,13 +337,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
   },
-
- 
   detailContainer: {
     flex: 1,
     backgroundColor: '#1e1e1e',
     padding: 20,
-    alignItems: 'center', 
+    alignItems: 'center',
     justifyContent: 'flex-start',
   },
   detailHeading: {
@@ -337,10 +359,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#555',
     padding: 10,
-    textAlignVertical: 'top', 
+    textAlignVertical: 'top',
   },
-
-  
   map: {
     flex: 1,
     width: '100%',
