@@ -8,6 +8,9 @@ import * as Location from 'expo-location';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, FlatList, Button, View, TextInput, Text, Pressable } from 'react-native';
 
+import { db } from './firebase';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+
 export default function App() {
   const Stack = createNativeStackNavigator();
   return (
@@ -58,12 +61,12 @@ const NotebookPage = ({ navigation, route }) => {
   function addNote() {
     if (text.trim()) {
       const newNote = {
-        key: Date.now().toString(), // unique key
-        name: text,                // the text itself
+        key: Date.now().toString(),
+        name: text,
       };
       const updatedList = [...notes, newNote];
       setNotes(updatedList);
-      storeData(updatedList); // persist to AsyncStorage
+      storeData(updatedList);
       setText('');
     }
   }
@@ -77,17 +80,19 @@ const NotebookPage = ({ navigation, route }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Notebook</Text>
+    <View style={styles.stylishContainer}>
+      <Text style={styles.stylishHeading}>Notebook</Text>
 
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder="Type your note here..."
-        style={styles.textInput}
-      />
-
-      <Button title="Add Note" onPress={addNote} />
+      <View style={styles.inputContainer}>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="Type your note here..."
+          placeholderTextColor="#ccc"
+          style={styles.stylishTextInput}
+        />
+        <Button title="Add Note" onPress={addNote} color="#4CAF50" />
+      </View>
 
       <FlatList
         style={styles.notesList}
@@ -95,7 +100,7 @@ const NotebookPage = ({ navigation, route }) => {
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => (
           <Pressable onPress={() => goToDetailPage(item)}>
-            <View style={styles.noteItem}>
+            <View style={styles.noteCard}>
               <Text style={styles.noteText}>
                 {truncate(item.name)}
               </Text>
@@ -103,9 +108,8 @@ const NotebookPage = ({ navigation, route }) => {
           </Pressable>
         )}
       />
-     
-      <Button title="Show Map" onPress={() => navigation.navigate('MapScreen')} />
 
+      <Button title="Show Map" onPress={() => navigation.navigate('MapScreen')} />
       <StatusBar style="auto" />
     </View>
   );
@@ -130,25 +134,52 @@ const DetailPage = ({ navigation, route }) => {
     }
   }
 
+  async function deleteNote() {
+    try {
+      const jsonValue = await AsyncStorage.getItem('myList');
+      let notesArray = jsonValue ? JSON.parse(jsonValue) : [];
+
+     
+      notesArray = notesArray.filter((item) => item.key !== note.key);
+
+     
+      await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
+
+      
+      navigation.goBack();
+    } catch (error) {
+      console.log("Error deleting note:", error);
+    }
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Edit Note</Text>
+    <View style={styles.detailContainer}>
+      <Text style={styles.detailHeading}>Edit Note</Text>
+
+     
       <TextInput
-        style={[styles.textInput, { height: 100 }]}
+        style={styles.detailTextInput}
         value={detailText}
         onChangeText={setDetailText}
         multiline
+        placeholder="Edit your note..."
+        placeholderTextColor="#ccc"
       />
-      <Button title="GEM" onPress={saveNote} />
+
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
+        <View style={{ marginRight: 10 }}>
+          <Button title="SAVE" onPress={saveNote} />
+        </View>
+        <Button title="DELETE" onPress={deleteNote} color="red" />
+      </View>
     </View>
   );
 };
 
 const MapScreen = () => {
-  
   const [region, setRegion] = useState({
-    latitude: 37.78825,         
-    longitude: -122.4324,       
+    latitude: 37.78825,
+    longitude: -122.4324,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
@@ -156,47 +187,73 @@ const MapScreen = () => {
 
   useEffect(() => {
     (async () => {
-      // Request permission for location access
+     
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.log('Permission to access location was denied');
-        return;
+      } else {
+        let location = await Location.getCurrentPositionAsync({});
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
       }
-      let location = await Location.getCurrentPositionAsync({});
-      console.log('Location fetched:', location.coords); 
+
       
-      setRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
+      const querySnapshot = await getDocs(collection(db, "markers"));
+      let loadedMarkers = [];
+      querySnapshot.forEach((doc) => {
+        loadedMarkers.push({
+          id: doc.id,
+          coordinate: {
+            latitude: doc.data().coordinate.latitude,
+            longitude: doc.data().coordinate.longitude,
+          },
+          title: doc.data().title,
+        });
       });
+      setMarkers(loadedMarkers);
     })();
   }, []);
 
-  const handleLongPress = (event) => {
+  const handleLongPress = async (event) => {
     const coordinate = event.nativeEvent.coordinate;
     const newMarker = {
-      id: Date.now().toString(), // unique ID
       coordinate,
       title: "Cool Place",
     };
-    setMarkers([...markers, newMarker]);
+
+  
+    try {
+      const docRef = await addDoc(collection(db, "markers"), {
+        coordinate,
+        title: "Cool Place",
+        createdAt: new Date(),
+      });
+      console.log("Marker saved with ID: ", docRef.id);
+
+     
+      setMarkers([...markers, { ...newMarker, id: docRef.id }]);
+    } catch (e) {
+      console.error("Error adding marker: ", e);
+    }
   };
 
   return (
-    <MapView 
-    style={styles.map} 
-    region={region}
-    onLongPress={handleLongPress}
+    <MapView
+      style={styles.map}
+      region={region}
+      onLongPress={handleLongPress}
     >
-
+      
       <Marker
         coordinate={{ latitude: region.latitude, longitude: region.longitude }}
         title="You are here"
-        
       />
-       {markers.map((marker) => (
+     
+      {markers.map((marker) => (
         <Marker
           key={marker.id}
           coordinate={marker.coordinate}
@@ -207,45 +264,82 @@ const MapScreen = () => {
   );
 };
 
+// UPDATED STYLES
 const styles = StyleSheet.create({
-  container: {
+  stylishContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 50,
+    backgroundColor: '#1e1e1e',
     padding: 20,
   },
-  heading: {
-    fontSize: 28,
+  stylishHeading: {
+    fontSize: 32,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 20,
     textAlign: 'center',
   },
-  textInput: {
-    backgroundColor: 'lightblue',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  stylishTextInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#fff',
     padding: 10,
-    marginBottom: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#ccc',
-    minWidth: 200,
+    borderColor: '#555',
+    marginRight: 10,
   },
   notesList: {
     marginTop: 10,
-    width: '100%',
   },
-  noteItem: {
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    marginBottom: 8,
-    borderRadius: 5,
+  noteCard: {
+    backgroundColor: '#333',
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#444',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
   },
   noteText: {
-    fontSize: 16,
+    fontSize: 18,
+    color: '#fff',
   },
+
+ 
+  detailContainer: {
+    flex: 1,
+    backgroundColor: '#1e1e1e',
+    padding: 20,
+    alignItems: 'center', 
+    justifyContent: 'flex-start',
+  },
+  detailHeading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  detailTextInput: {
+    width: '100%',
+    backgroundColor: '#333',
+    color: '#fff',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#555',
+    padding: 10,
+    textAlignVertical: 'top', 
+  },
+
   
   map: {
     flex: 1,
