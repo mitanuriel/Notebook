@@ -135,6 +135,25 @@ const DetailPage = ({ navigation, route }) => {
     }
   }
 
+  async function deleteNote() {
+    try {
+      const jsonValue = await AsyncStorage.getItem('myList');
+      let notesArray = jsonValue ? JSON.parse(jsonValue) : [];
+
+      // Filter out the note that matches our current note.key
+      notesArray = notesArray.filter((item) => item.key !== note.key);
+
+      // Save the updated list back to AsyncStorage
+      await AsyncStorage.setItem('myList', JSON.stringify(notesArray));
+
+      // Navigate back to the Notebook page
+      navigation.goBack();
+    } catch (error) {
+      console.log("Error deleting note:", error);
+    }
+  }
+
+
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Edit Note</Text>
@@ -144,7 +163,8 @@ const DetailPage = ({ navigation, route }) => {
         onChangeText={setDetailText}
         multiline
       />
-      <Button title="GEM" onPress={saveNote} />
+      <Button title="SAVE" onPress={saveNote} />
+      <Button title="DELETE" onPress={deleteNote} color="red" />
     </View>
   );
 };
@@ -237,6 +257,8 @@ const MapScreen = () => {
     </MapView>
   );
 };
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
