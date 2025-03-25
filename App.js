@@ -8,7 +8,12 @@ import * as Location from 'expo-location';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, FlatList, Button, View, TextInput, Text, Pressable } from 'react-native';
 
+import { db } from './firebase';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+
+
 export default function App() {
+
   const Stack = createNativeStackNavigator();
   return (
     <NavigationContainer>
@@ -156,47 +161,73 @@ const MapScreen = () => {
 
   useEffect(() => {
     (async () => {
-      // Request permission for location access
+      // Request permission for location
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.log('Permission to access location was denied');
-        return;
+      } else {
+        let location = await Location.getCurrentPositionAsync({});
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
       }
-      let location = await Location.getCurrentPositionAsync({});
-      console.log('Location fetched:', location.coords); 
-      
-      setRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
+      const querySnapshot = await getDocs(collection(db, "markers"));
+      let loadedMarkers = [];
+      querySnapshot.forEach((doc) => {
+        // doc.data() is an object like { coordinate: {latitude, longitude}, title: ... }
+        loadedMarkers.push({
+          id: doc.id,
+          coordinate: {
+            latitude: doc.data().coordinate.latitude,
+            longitude: doc.data().coordinate.longitude,
+          },
+          title: doc.data().title,
+        });
       });
+      setMarkers(loadedMarkers);
     })();
   }, []);
 
-  const handleLongPress = (event) => {
+  const handleLongPress = async (event) => {
+    console.log("Long press event:", event.nativeEvent.coordinate);
     const coordinate = event.nativeEvent.coordinate;
     const newMarker = {
-      id: Date.now().toString(), // unique ID
       coordinate,
       title: "Cool Place",
     };
-    setMarkers([...markers, newMarker]);
+
+    // First, add to Firestore
+    try {
+      const docRef = await addDoc(collection(db, "markers"), {
+        coordinate,
+        title: "Cool Place",
+        createdAt: new Date(),
+      });
+      console.log("Marker saved with ID: ", docRef.id);
+
+      // Then, update local state with docRef.id
+      setMarkers([...markers, { ...newMarker, id: docRef.id }]);
+    } catch (e) {
+      console.error("Error adding marker: ", e);
+    }
   };
 
   return (
-    <MapView 
-    style={styles.map} 
-    region={region}
-    onLongPress={handleLongPress}
+    <MapView
+      style={styles.map}
+      region={region}
+      onLongPress={handleLongPress}
     >
-
+      {/* Show a marker for the user's location */}
       <Marker
         coordinate={{ latitude: region.latitude, longitude: region.longitude }}
         title="You are here"
-        
       />
-       {markers.map((marker) => (
+      {/* Render markers from Firestore */}
+      {markers.map((marker) => (
         <Marker
           key={marker.id}
           coordinate={marker.coordinate}
@@ -206,7 +237,6 @@ const MapScreen = () => {
     </MapView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
